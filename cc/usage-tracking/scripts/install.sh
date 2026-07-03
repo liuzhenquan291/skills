@@ -29,6 +29,7 @@ fi
 chmod +x "$SCRIPT_DIR/usage_logger.py"
 chmod +x "$SCRIPT_DIR/view_usage.py"
 chmod +x "$SCRIPT_DIR/usage_server.py"
+chmod +x "$SCRIPT_DIR/service.sh"
 echo "✓ 脚本权限已设置"
 
 # 4. 安装 Python 依赖（FastAPI + uvicorn）
@@ -165,14 +166,24 @@ fi
 echo ""
 echo "=== 安装完成 ==="
 echo ""
+
+# 启动后台服务
+echo "=== 启动后台 Web 服务 ==="
+bash "$SCRIPT_DIR/service.sh" start
+
+echo ""
 echo "使用方式："
 echo ""
-echo "1. 命令行查看："
+echo "1. Web 界面（已自动启动）："
+echo "   访问: http://localhost:8765"
+echo ""
+echo "2. 命令行查看："
 echo "   python3 $SCRIPT_DIR/view_usage.py --summary"
 echo "   python3 $SCRIPT_DIR/view_usage.py --latest 5"
 echo ""
-echo "2. Web 界面（推荐）："
-echo "   python3 $SCRIPT_DIR/usage_server.py"
-echo "   然后访问: http://localhost:8765"
+echo "3. 服务管理："
+echo "   bash $SCRIPT_DIR/service.sh status    # 查看状态"
+echo "   bash $SCRIPT_DIR/service.sh restart   # 重启服务"
+echo "   bash $SCRIPT_DIR/service.sh stop      # 停止服务"
 echo ""
 echo "下次启动 Claude Code 会话时，token 消耗将自动记录。"

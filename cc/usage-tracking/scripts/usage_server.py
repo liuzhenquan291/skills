@@ -70,6 +70,24 @@ class UsageCache:
                     cache['projects'] = {}
                 if 'sessions' not in cache:
                     cache['sessions'] = {}
+
+                # 将 JSON 加载的 list 转回 set（因为代码用 set.add()）
+                for model, stats in cache.get('model_stats', {}).items():
+                    if isinstance(stats.get('sessions'), list):
+                        stats['sessions'] = set(stats['sessions'])
+
+                for date, stats in cache.get('daily_stats', {}).items():
+                    if isinstance(stats.get('sessions'), list):
+                        stats['sessions'] = set(stats['sessions'])
+
+                for proj_dir, proj in cache.get('projects', {}).items():
+                    for model, stats in proj.get('model_stats', {}).items():
+                        if isinstance(stats.get('sessions'), list):
+                            stats['sessions'] = set(stats['sessions'])
+                    for date, stats in proj.get('daily_stats', {}).items():
+                        if isinstance(stats.get('sessions'), list):
+                            stats['sessions'] = set(stats['sessions'])
+
                 return cache
         except (json.JSONDecodeError, IOError):
             return default_cache
