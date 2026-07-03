@@ -23,6 +23,16 @@ DATA_DIR = SKILL_DIR / 'data'
 USAGE_FILE = DATA_DIR / 'usage.jsonl'
 
 
+def find_git_root(path):
+    """从 path 向上查找 git 根目录，找不到则返回 path 本身"""
+    p = Path(path).resolve()
+    while p != p.parent:
+        if (p / '.git').exists():
+            return p
+        p = p.parent
+    return path
+
+
 def find_transcript_by_cwd(project_dir):
     """通过 cwd 查找当前项目的最新 transcript 文件"""
     project_path = Path(project_dir).resolve()
@@ -42,12 +52,15 @@ def find_transcript_by_cwd(project_dir):
             try:
                 mtime = jsonl.stat().st_mtime
                 if mtime > latest_time:
-                    # 验证 transcript 是否属于当前项目
+                    # 验证 transcript 是否属于当前项目（精确匹配或 cwd 在项目目录下）
                     with open(jsonl, 'r') as f:
                         for line in f:
                             try:
                                 data = json.loads(line.strip())
-                                if data.get('cwd') == str(project_path):
+                                transcript_cwd = data.get('cwd', '')
+                                # 精确匹配，或者 transcript 的 cwd 是当前项目目录的子目录
+                                if transcript_cwd == str(project_path) or \
+                                   str(transcript_cwd).startswith(str(project_path) + '/'):
                                     latest_time = mtime
                                     latest_file = jsonl
                                     latest_session = jsonl.stem
@@ -169,17 +182,19 @@ def parse_latest_turn(transcript_path, recorded_turns):
 
 
 def main():
-    # 获取项目目录
+    # 获取项目目录（从 cwd 向上查找 git 根目录）
     if len(sys.argv) > 1:
         project_dir = sys.argv[1]
     else:
         project_dir = os.getcwd()
 
     project_path = Path(project_dir).resolve()
-    project_name = project_path.name
+    # 使用 git 根目录作为项目标识
+    git_root = find_git_root(project_path)
+    project_name = Path(git_root).name
 
     # 查找 transcript 文件
-    session_id, transcript_path = find_transcript_by_cwd(project_path)
+    session_id, transcript_path = find_transcript_by_cwd(git_root)
 
     if not transcript_path:
         print("未找到当前项目的 transcript 文件", file=sys.stderr)
@@ -205,7 +220,7 @@ def main():
                 'session_id': session_id,
                 'turn': turn['turn'],
                 'timestamp': turn['timestamp'],
-                'project_dir': str(project_path),
+                'project_dir': str(git_root),
                 'project_name': project_name,
                 'model': model,
                 'input_tokens': turn['input_tokens'],
