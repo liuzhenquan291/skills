@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Code Usage Tracking</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+            margin-bottom: 25px;
+        }
+
+        .header h1 { font-size: 1.8em; }
+
+        .nav { display: flex; gap: 12px; }
+
+        .nav-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95em;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover, .nav-btn.active {
+            background: rgba(255,255,255,0.35);
+        }
+
+        .page { display: none; }
+        .page.active { display: block; }
+
+        /* 统计卡片网格 - 固定 3 列 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 1024px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 640px) {
+            .stats-grid { grid-template-columns: 1fr; }
+        }
+
+        /* 美化统计卡片 */
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+        }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3em;
+            color: white;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            color: #333;
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .stat-sub { color: #999; font-size: 0.82em; }
+
+        /* 卡片容器 - 减小上下间隔 */
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px 25px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .card-title {
+            font-size: 1.15em;
+            color: #333;
+            margin-bottom: 16px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Projects Table */
+        .projects-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .projects-table th {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #555;
+            font-size: 0.9em;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .projects-table td {
+            padding: 14px 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .projects-table tr:hover { background: #f8f9ff; }
+
+        .project-name {
+            font-weight: 600;
+            color: #667eea;
+            cursor: pointer;
+        }
+
+        .project-name:hover { text-decoration: underline; }
+
+        .project-path {
+            font-size: 0.8em;
+            color: #999;
+            font-family: monospace;
+        }
+
+        /* Sessions */
+        .session-list { display: flex; flex-direction: column; gap: 12px; }
+
+        .session-item {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .session-item:hover { border-color: #667eea; background: #f8f9ff; }
+        .session-item.expanded { background: #f8f9ff; }
+
+        .session-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .session-id {
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .session-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .session-tokens { text-align: right; }
+        .token-value { font-size: 1.2em; font-weight: bold; color: #333; }
+        .token-label { font-size: 0.8em; color: #999; }
+
+        .session-details {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+            display: none;
+        }
+
+        .session-item.expanded .session-details { display: block; }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .detail-item { background: #f8f9fa; padding: 12px; border-radius: 6px; }
+        .detail-label { font-size: 0.8em; color: #666; margin-bottom: 4px; }
+        .detail-value { font-size: 1em; font-weight: 600; color: #333; }
+
+        /* Turns Table with Summary */
+        .turns-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 0.85em;
+        }
+
+        .turns-table th {
+            background: #f0f0f0;
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .turns-table td {
+            padding: 10px;
+            border-top: 1px solid #e8e8e8;
+            vertical-align: top;
+        }
+
+        .turns-table tr:hover { background: #fafafa; }
+
+        .turn-summary {
+            max-width: 400px;
+            color: #555;
+            font-size: 0.9em;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+
+        .turn-tools {
+            display: inline-block;
+            background: #e8f4fd;
+            color: #1976d2;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            margin-right: 5px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .page-btn {
+            background: #f0f0f0;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .page-btn:hover { background: #667eea; color: white; }
+        .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .page-info { display: flex; align-items: center; color: #666; }
+
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+
+        .refresh-btn:hover { background: #5568d3; transform: scale(1.05); }
+
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 15px;
+        }
+
+        .back-btn:hover { background: rgba(255,255,255,0.35); }
+
+        .loading { text-align: center; padding: 30px; color: #666; }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon { font-size: 3em; margin-bottom: 12px; }
+
+        /* 图表容器高度优化 */
+        .chart-container {
+            position: relative;
+            height: 320px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Claude Code Usage</h1>
+            <div class="nav">
+                <button class="nav-btn active" onclick="showPage('home')" id="nav-home">首页</button>
+                <button class="nav-btn" onclick="showPage('projects')" id="nav-projects">项目列表</button>
+            </div>
+        </div>
+
+        <!-- 首页 -->
+        <div class="page active" id="page-home">
+            <div class="stats-grid" id="homeStats">
+                <div class="loading"><div class="spinner"></div><p>加载中...</p></div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">📈 全局 Token 消耗趋势</div>
+                <div class="chart-container">
+                    <canvas id="homeTrendChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">
+                    📊 项目用量排行
+                    <button class="refresh-btn" onclick="loadHomeProjects(true)">🔄 刷新</button>
+                </div>
+                <div id="homeProjectsList">
+                    <div class="loading"><div class="spinner"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 项目列表页 -->
+        <div class="page" id="page-projects">
+            <div class="card">
+                <div class="card-title">
+                    📁 所有项目
+                    <button class="refresh-btn" onclick="loadProjectsPage()">🔄 刷新</button>
+                </div>
+                <div id="projectsTable">
+                    <div class="loading"><div class="spinner"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 项目详情页 -->
+        <div class="page" id="page-project-detail">
+            <div style="margin-bottom: 20px;">
+                <button class="back-btn" onclick="showPage('projects')">← 返回项目列表</button>
+                <span style="color: white; font-size: 1.2em;" id="projectDetailTitle"></span>
+            </div>
+
+            <div class="stats-grid" id="projectStats"></div>
+
+            <div class="card">
+                <div class="card-title">📈 项目 Token 消耗趋势</div>
+                <div class="chart-container">
+                    <canvas id="projectTrendChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">📋 会话列表</div>
+                <div class="session-list" id="projectSessions">
+                    <div class="loading"><div class="spinner"></div></div>
+                </div>
+                <div class="pagination" id="projectPagination"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let homeTrendChart = null;
+        let projectTrendChart = null;
+        let currentPage = 0;
+        let currentProjectDir = null;
+        const pageSize = 20;
+
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            return new Date(dateStr).toLocaleString('zh-CN', {
+                month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+            });
+        }
+
+        function showPage(pageName, projectDir = null) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+            if (pageName === 'home') {
+                document.getElementById('page-home').classList.add('active');
+                document.getElementById('nav-home').classList.add('active');
+                loadHomeData();
+            } else if (pageName === 'projects') {
+                document.getElementById('page-projects').classList.add('active');
+                document.getElementById('nav-projects').classList.add('active');
+                loadProjectsPage();
+            } else if (pageName === 'project-detail' && projectDir) {
+                document.getElementById('page-project-detail').classList.add('active');
+                currentProjectDir = projectDir;
+                loadProjectDetail(projectDir);
+            }
+        }
+
+        // 首页数据
+        async function loadHomeData() {
+            await loadHomeStats();
+            await loadHomeTrend();
+            await loadHomeProjects(false);
+        }
+
+        async function loadHomeStats() {
+            const res = await fetch('/api/summary');
+            const data = await res.json();
+
+            // 获取每日统计，计算有消耗的天数和日均消耗
+            const trendsRes = await fetch('/api/trends?days=365');
+            const trendsData = await trendsRes.json();
+            const activeDays = trendsData.data.filter(d => d.tokens > 0).length;
+            const dailyAvg = activeDays > 0 ? Math.round(data.total_tokens / activeDays) : 0;
+
+            document.getElementById('homeStats').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon"></div>
+                        <div class="stat-label">总 Tokens</div>
+                    </div>
+                    <div class="stat-value">${formatNumber(data.total_tokens)}</div>
+                    <div class="stat-sub">${data.total_tokens.toLocaleString()}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">💬</div>
+                        <div class="stat-label">会话数</div>
+                    </div>
+                    <div class="stat-value">${data.total_sessions}</div>
+                    <div class="stat-sub">${data.total_turns} 轮对话</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">📁</div>
+                        <div class="stat-label">项目数</div>
+                    </div>
+                    <div class="stat-value">${data.project_count}</div>
+                    <div class="stat-sub">${Object.keys(data.model_stats).length} 个模型</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">⚡</div>
+                        <div class="stat-label">平均每次会话</div>
+                    </div>
+                    <div class="stat-value">${formatNumber(Math.round(data.total_tokens / data.total_sessions || 0))}</div>
+                    <div class="stat-sub">tokens / session</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">📅</div>
+                        <div class="stat-label">每天 Tokens</div>
+                    </div>
+                    <div class="stat-value">${formatNumber(dailyAvg)}</div>
+                    <div class="stat-sub">${dailyAvg.toLocaleString()} tokens / 活跃天</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">📆</div>
+                        <div class="stat-label">活跃天数</div>
+                    </div>
+                    <div class="stat-value">${activeDays}</div>
+                    <div class="stat-sub">有 token 消耗的天数</div>
+                </div>
+            `;
+        }
+
+        async function loadHomeTrend() {
+            const res = await fetch('/api/trends?days=30');
+            const data = await res.json();
+
+            const ctx = document.getElementById('homeTrendChart').getContext('2d');
+            if (homeTrendChart) homeTrendChart.destroy();
+
+            homeTrendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.data.map(d => d.date),
+                    datasets: [
+                        { label: 'Token 消耗', data: data.data.map(d => d.tokens), borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,0.1)', tension: 0.4, yAxisID: 'y' },
+                        { label: '会话数', data: data.data.map(d => d.sessions), borderColor: '#764ba2', backgroundColor: 'rgba(118,75,162,0.1)', tension: 0.4, yAxisID: 'y1' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { type: 'linear', position: 'left', title: { display: true, text: 'Tokens' } },
+                        y1: { type: 'linear', position: 'right', title: { display: true, text: '会话数' }, grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+        }
+
+        // 局部刷新项目列表（不滚动页面）
+        async function loadHomeProjects(showLoading = false) {
+            const container = document.getElementById('homeProjectsList');
+
+            if (showLoading) {
+                container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+            }
+
+            const res = await fetch('/api/projects');
+            const data = await res.json();
+
+            if (data.projects.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><p>暂无项目数据</p></div>';
+                return;
+            }
+
+            let html = `<table class="projects-table">
+                <thead><tr>
+                    <th>项目名称</th>
+                    <th>总 Tokens</th>
+                    <th>会话数</th>
+                    <th>轮次</th>
+                    <th>平均/会话</th>
+                </tr></thead><tbody>`;
+
+            for (const p of data.projects) {
+                const avg = Math.round(p.total_tokens / p.total_sessions || 0);
+                html += `<tr>
+                    <td>
+                        <div class="project-name" onclick="showPage('project-detail', '${encodeURIComponent(p.project_dir)}')">${p.project_name}</div>
+                        <div class="project-path">${p.project_dir}</div>
+                    </td>
+                    <td><strong>${formatNumber(p.total_tokens)}</strong></td>
+                    <td>${p.total_sessions}</td>
+                    <td>${p.total_turns}</td>
+                    <td>${formatNumber(avg)}</td>
+                </tr>`;
+            }
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // 项目列表页
+        async function loadProjectsPage() {
+            const res = await fetch('/api/projects');
+            const data = await res.json();
+
+            if (data.projects.length === 0) {
+                document.getElementById('projectsTable').innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><p>暂无项目数据</p></div>';
+                return;
+            }
+
+            let html = `<table class="projects-table">
+                <thead><tr>
+                    <th>项目名称</th>
+                    <th>路径</th>
+                    <th>总 Tokens</th>
+                    <th>会话数</th>
+                    <th>轮次</th>
+                    <th>操作</th>
+                </tr></thead><tbody>`;
+
+            for (const p of data.projects) {
+                html += `<tr>
+                    <td><strong>${p.project_name}</strong></td>
+                    <td class="project-path">${p.project_dir}</td>
+                    <td>${formatNumber(p.total_tokens)}</td>
+                    <td>${p.total_sessions}</td>
+                    <td>${p.total_turns}</td>
+                    <td><button class="refresh-btn" onclick="showPage('project-detail', '${encodeURIComponent(p.project_dir)}')">查看详情</button></td>
+                </tr>`;
+            }
+
+            html += '</tbody></table>';
+            document.getElementById('projectsTable').innerHTML = html;
+        }
+
+        // 项目详情页
+        async function loadProjectDetail(projectDir) {
+            const decodedDir = decodeURIComponent(projectDir);
+
+            // 加载项目信息
+            const projRes = await fetch(`/api/project?project_dir=${encodeURIComponent(decodedDir)}`);
+            const proj = await projRes.json();
+
+            // 加载项目趋势，计算活跃天数和日均消耗
+            const trendsRes = await fetch(`/api/project/trends?project_dir=${encodeURIComponent(decodedDir)}&days=365`);
+            const trendsData = await trendsRes.json();
+            const activeDays = trendsData.data ? trendsData.data.filter(d => d.tokens > 0).length : 0;
+            const dailyAvg = activeDays > 0 ? Math.round(proj.total_tokens / activeDays) : 0;
+
+            document.getElementById('projectDetailTitle').textContent = `${proj.project_name}`;
+
+            document.getElementById('projectStats').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon"></div>
+                        <div class="stat-label">项目总 Tokens</div>
+                    </div>
+                    <div class="stat-value">${formatNumber(proj.total_tokens)}</div>
+                    <div class="stat-sub">${proj.total_tokens.toLocaleString()}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">💬</div>
+                        <div class="stat-label">会话数</div>
+                    </div>
+                    <div class="stat-value">${proj.total_sessions}</div>
+                    <div class="stat-sub">${proj.total_turns} 轮对话</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">⚡</div>
+                        <div class="stat-label">平均每次会话</div>
+                    </div>
+                    <div class="stat-value">${formatNumber(Math.round(proj.total_tokens / proj.total_sessions || 0))}</div>
+                    <div class="stat-sub">tokens / session</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">📅</div>
+                        <div class="stat-label">每天 Tokens</div>
+                    </div>
+                    <div class="stat-value">${formatNumber(dailyAvg)}</div>
+                    <div class="stat-sub">${dailyAvg.toLocaleString()} tokens / 活跃天</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">📆</div>
+                        <div class="stat-label">活跃天数</div>
+                    </div>
+                    <div class="stat-value">${activeDays}</div>
+                    <div class="stat-sub">有 token 消耗的天数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon"></div>
+                        <div class="stat-label">使用模型</div>
+                    </div>
+                    <div class="stat-value" style="font-size:1em;">${Object.keys(proj.model_stats).length}</div>
+                    <div class="stat-sub">${Object.keys(proj.model_stats).join(', ') || '-'}</div>
+                </div>
+            `;
+
+            // 加载趋势
+            loadProjectTrend(decodedDir);
+
+            // 加载会话
+            currentPage = 0;
+            loadProjectSessions(decodedDir);
+        }
+
+        async function loadProjectTrend(projectDir) {
+            const res = await fetch(`/api/project/trends?project_dir=${encodeURIComponent(projectDir)}&days=30`);
+            const data = await res.json();
+
+            if (!data.data || data.data.length === 0) {
+                document.getElementById('projectTrendChart').style.display = 'none';
+                return;
+            }
+
+            const ctx = document.getElementById('projectTrendChart').getContext('2d');
+            if (projectTrendChart) projectTrendChart.destroy();
+
+            projectTrendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.data.map(d => d.date),
+                    datasets: [
+                        { label: 'Token 消耗', data: data.data.map(d => d.tokens), borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,0.1)', tension: 0.4, yAxisID: 'y' },
+                        { label: '会话数', data: data.data.map(d => d.sessions), borderColor: '#764ba2', backgroundColor: 'rgba(118,75,162,0.1)', tension: 0.4, yAxisID: 'y1' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { type: 'linear', position: 'left', title: { display: true, text: 'Tokens' } },
+                        y1: { type: 'linear', position: 'right', title: { display: true, text: '会话数' }, grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+        }
+
+        async function loadProjectSessions(projectDir, page = 0) {
+            const res = await fetch(`/api/sessions?project_dir=${projectDir}&limit=${pageSize}&offset=${page * pageSize}`);
+            const data = await res.json();
+
+            const container = document.getElementById('projectSessions');
+
+            if (data.sessions.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><p>暂无会话数据</p></div>';
+                document.getElementById('projectPagination').innerHTML = '';
+                return;
+            }
+
+            container.innerHTML = data.sessions.map(s => `
+                <div class="session-item" onclick="toggleSession(this, '${s.session_id}')">
+                    <div class="session-summary">
+                        <div>
+                            <div class="session-id">${s.session_id.substring(0, 8)}...</div>
+                            <div class="session-meta">
+                                <span>📅 ${formatDate(s.timestamp)}</span>
+                                <span>🤖 ${s.model}</span>
+                                <span> ${s.turns} 轮</span>
+                            </div>
+                        </div>
+                        <div class="session-tokens">
+                            <div class="token-value">${formatNumber(s.total_tokens)}</div>
+                            <div class="token-label">tokens</div>
+                        </div>
+                    </div>
+                    <div class="session-details" id="details-${s.session_id}"></div>
+                </div>
+            `).join('');
+
+            // 分页
+            const totalPages = Math.ceil(data.total / pageSize);
+            const pag = document.getElementById('projectPagination');
+            if (totalPages > 1) {
+                pag.innerHTML = `
+                    <button class="page-btn" onclick="loadProjectSessions('${projectDir}', ${page - 1})" ${page === 0 ? 'disabled' : ''}>上一页</button>
+                    <div class="page-info">第 ${page + 1} / ${totalPages} 页，共 ${data.total} 条</div>
+                    <button class="page-btn" onclick="loadProjectSessions('${projectDir}', ${page + 1})" ${page >= totalPages - 1 ? 'disabled' : ''}>下一页</button>
+                `;
+            } else {
+                pag.innerHTML = '';
+            }
+        }
+
+        async function toggleSession(element, sessionId) {
+            element.classList.toggle('expanded');
+            const detailsDiv = document.getElementById(`details-${sessionId}`);
+
+            if (element.classList.contains('expanded') && !detailsDiv.dataset.loaded) {
+                detailsDiv.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+                const res = await fetch(`/api/session/${sessionId}`);
+                const session = await res.json();
+
+                let turnsHtml = '';
+                if (session.turn_details && session.turn_details.length > 0) {
+                    turnsHtml = `
+                        <div style="margin-top:15px; font-weight:600; color:#555;">每轮对话详情</div>
+                        <table class="turns-table">
+                            <thead><tr>
+                                <th style="width:40px">#</th>
+                                <th style="width:80px">时间</th>
+                                <th style="width:80px">输入</th>
+                                <th style="width:80px">输出</th>
+                                <th style="width:80px">总计</th>
+                                <th style="width:150px">工具/概述</th>
+                                <th>响应概述</th>
+                            </tr></thead>
+                            <tbody>
+                                ${session.turn_details.map(t => `
+                                    <tr>
+                                        <td>${t.turn}</td>
+                                        <td>${formatDate(t.timestamp)}</td>
+                                        <td>${formatNumber(t.input_tokens)}</td>
+                                        <td>${formatNumber(t.output_tokens)}</td>
+                                        <td><strong>${formatNumber(t.total)}</strong></td>
+                                        <td>${t.has_tool_calls ? (t.tool_names || []).map(n => `<span class="turn-tools">${n}</span>`).join('') : '<span style="color:#999">💬 文本</span>'}</td>
+                                        <td class="turn-summary">${t.response_summary || '<span style="color:#ccc">-</span>'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+
+                detailsDiv.innerHTML = `
+                    <div class="details-grid">
+                        <div class="detail-item"><div class="detail-label">输入 Tokens</div><div class="detail-value">${session.input_tokens.toLocaleString()}</div></div>
+                        <div class="detail-item"><div class="detail-label">输出 Tokens</div><div class="detail-value">${session.output_tokens.toLocaleString()}</div></div>
+                        <div class="detail-item"><div class="detail-label">缓存创建</div><div class="detail-value">${session.cache_creation.toLocaleString()}</div></div>
+                        <div class="detail-item"><div class="detail-label">缓存读取</div><div class="detail-value">${session.cache_read.toLocaleString()}</div></div>
+                        <div class="detail-item"><div class="detail-label">开始时间</div><div class="detail-value">${formatDate(session.start_time)}</div></div>
+                        <div class="detail-item"><div class="detail-label">结束时间</div><div class="detail-value">${formatDate(session.end_time)}</div></div>
+                    </div>
+                    ${turnsHtml}
+                `;
+                detailsDiv.dataset.loaded = 'true';
+            }
+        }
+
+        // 初始化
+        showPage('home');
+    </script>
+</body>
+</html>
