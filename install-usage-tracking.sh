@@ -130,15 +130,34 @@ PYEOF
 fi
 
 echo ""
+echo "7. 安装依赖..."
+if pip3 install --quiet fastapi uvicorn 2>/dev/null; then
+    echo "  ✓ FastAPI 和 uvicorn 已安装"
+else
+    echo "  ⚠ 自动安装失败，请手动运行: pip3 install fastapi uvicorn"
+fi
+
+echo ""
+echo "8. 启动 Web 服务..."
+# 检查是否已有服务在运行
+if lsof -i :8765 > /dev/null 2>&1; then
+    echo "  服务已在运行（端口 8765）"
+else
+    # 后台启动服务
+    nohup python3 "$SKILL_DIR/scripts/usage_server.py" > "$SKILL_DIR/data/usage_server.log" 2>&1 &
+    echo "  ✓ 服务已启动（PID: $!）"
+fi
+
+echo ""
 echo "=== 安装完成 ==="
 echo ""
-echo "使用方式："
+echo "Web 界面：http://localhost:8765"
 echo ""
-echo "1. 命令行查看："
-echo "   python3 $SKILL_DIR/scripts/view_usage.py --summary"
+echo "命令行查看："
+echo "  python3 $SKILL_DIR/scripts/view_usage.py --summary"
 echo ""
-echo "2. Web 界面（推荐）："
-echo "   python3 $SKILL_DIR/scripts/usage_server.py"
-echo "   然后访问：http://localhost:8765"
+echo "服务管理："
+echo "  查看日志：cat $SKILL_DIR/data/usage_server.log"
+echo "  重启服务：pkill -f usage_server.py && python3 $SKILL_DIR/scripts/usage_server.py &"
 echo ""
 echo "下次启动 Claude Code 会话时，token 消耗将自动记录。"
