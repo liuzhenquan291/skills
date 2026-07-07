@@ -486,7 +486,7 @@
             document.getElementById('homeStats').innerHTML = `
                 <div class="stat-card">
                     <div class="stat-header">
-                        <div class="stat-icon"></div>
+                        <div class="stat-icon">📊</div>
                         <div class="stat-label">总 Tokens</div>
                     </div>
                     <div class="stat-value">${formatNumber(data.total_tokens)}</div>
@@ -531,6 +531,38 @@
                     </div>
                     <div class="stat-value">${activeDays}</div>
                     <div class="stat-sub">有 token 消耗的天数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">⬇️</div>
+                        <div class="stat-label">输入 Tokens</div>
+                    </div>
+                    <div class="stat-value">${formatNumber(data.total_input_tokens || 0)}</div>
+                    <div class="stat-sub">${(data.total_input_tokens || 0).toLocaleString()}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">⬆️</div>
+                        <div class="stat-label">输出 Tokens</div>
+                    </div>
+                    <div class="stat-value">${formatNumber(data.total_output_tokens || 0)}</div>
+                    <div class="stat-sub">${(data.total_output_tokens || 0).toLocaleString()}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">✨</div>
+                        <div class="stat-label">缓存创建</div>
+                    </div>
+                    <div class="stat-value">${formatNumber(data.total_cache_creation || 0)}</div>
+                    <div class="stat-sub">${(data.total_cache_creation || 0).toLocaleString()}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">💾</div>
+                        <div class="stat-label">缓存读取</div>
+                    </div>
+                    <div class="stat-value">${formatNumber(data.total_cache_read || 0)}</div>
+                    <div class="stat-sub">${(data.total_cache_read || 0).toLocaleString()}</div>
                 </div>
             `;
         }
@@ -659,7 +691,7 @@
             document.getElementById('projectStats').innerHTML = `
                 <div class="stat-card">
                     <div class="stat-header">
-                        <div class="stat-icon"></div>
+                        <div class="stat-icon">📊</div>
                         <div class="stat-label">项目总 Tokens</div>
                     </div>
                     <div class="stat-value">${formatNumber(proj.total_tokens)}</div>
@@ -699,11 +731,43 @@
                 </div>
                 <div class="stat-card">
                     <div class="stat-header">
-                        <div class="stat-icon"></div>
+                        <div class="stat-icon">🤖</div>
                         <div class="stat-label">使用模型</div>
                     </div>
                     <div class="stat-value" style="font-size:1em;">${Object.keys(proj.model_stats).length}</div>
                     <div class="stat-sub">${Object.keys(proj.model_stats).join(', ') || '-'}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">⬇️</div>
+                        <div class="stat-label">输入 Tokens</div>
+                    </div>
+                    <div class="stat-value">${formatNumber(proj.total_input_tokens || 0)}</div>
+                    <div class="stat-sub">${(proj.total_input_tokens || 0).toLocaleString()}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">⬆️</div>
+                        <div class="stat-label">输出 Tokens</div>
+                    </div>
+                    <div class="stat-value">${formatNumber(proj.total_output_tokens || 0)}</div>
+                    <div class="stat-sub">${(proj.total_output_tokens || 0).toLocaleString()}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">✨</div>
+                        <div class="stat-label">缓存创建</div>
+                    </div>
+                    <div class="stat-value">${formatNumber(proj.total_cache_creation || 0)}</div>
+                    <div class="stat-sub">${(proj.total_cache_creation || 0).toLocaleString()}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon">💾</div>
+                        <div class="stat-label">缓存读取</div>
+                    </div>
+                    <div class="stat-value">${formatNumber(proj.total_cache_read || 0)}</div>
+                    <div class="stat-sub">${(proj.total_cache_read || 0).toLocaleString()}</div>
                 </div>
             `;
 

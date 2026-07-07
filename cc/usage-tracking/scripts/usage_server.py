@@ -155,6 +155,10 @@ class UsageCache:
         # 更新全局总计
         self.cache['total_tokens'] += total_tokens
         self.cache['total_turns'] += 1
+        self.cache['total_input_tokens'] = self.cache.get('total_input_tokens', 0) + input_tokens
+        self.cache['total_output_tokens'] = self.cache.get('total_output_tokens', 0) + output_tokens
+        self.cache['total_cache_creation'] = self.cache.get('total_cache_creation', 0) + cache_creation
+        self.cache['total_cache_read'] = self.cache.get('total_cache_read', 0) + cache_read
 
         # 更新会话统计
         if session_id not in self.cache['sessions']:
@@ -208,6 +212,10 @@ class UsageCache:
                 'project_dir': project_dir,
                 'project_name': project_name,
                 'total_tokens': 0,
+                'total_input_tokens': 0,
+                'total_output_tokens': 0,
+                'total_cache_creation': 0,
+                'total_cache_read': 0,
                 'total_sessions': 0,
                 'total_turns': 0,
                 'daily_stats': {},
@@ -216,6 +224,10 @@ class UsageCache:
 
         project = self.cache['projects'][project_dir]
         project['total_tokens'] += total_tokens
+        project['total_input_tokens'] += input_tokens
+        project['total_output_tokens'] += output_tokens
+        project['total_cache_creation'] += cache_creation
+        project['total_cache_read'] += cache_read
         project['total_turns'] += 1
 
         # 更新模型统计（全局）
@@ -295,6 +307,10 @@ async def get_summary():
 
     return {
         'total_tokens': cache.cache['total_tokens'],
+        'total_input_tokens': cache.cache.get('total_input_tokens', 0),
+        'total_output_tokens': cache.cache.get('total_output_tokens', 0),
+        'total_cache_creation': cache.cache.get('total_cache_creation', 0),
+        'total_cache_read': cache.cache.get('total_cache_read', 0),
         'total_sessions': total_sessions,
         'total_turns': cache.cache['total_turns'],
         'model_stats': model_stats,
@@ -375,6 +391,10 @@ async def get_project_detail(project_dir: Optional[str] = None):
         'project_dir': project['project_dir'],
         'project_name': project['project_name'],
         'total_tokens': project['total_tokens'],
+        'total_input_tokens': project.get('total_input_tokens', 0),
+        'total_output_tokens': project.get('total_output_tokens', 0),
+        'total_cache_creation': project.get('total_cache_creation', 0),
+        'total_cache_read': project.get('total_cache_read', 0),
         'total_sessions': len(set(
             sid for sid, s in cache.cache['sessions'].items()
             if s['project_dir'] == project_dir

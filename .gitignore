@@ -15,7 +15,6 @@
 vendor/
 gin-bin
 .DS_Store
-*.sh
 mainre
 tmp
 .air.toml
