@@ -154,14 +154,24 @@ else
 fi
 
 echo ""
-echo "10. 启动 Web 服务..."
-# 检查是否已有服务在运行
+echo "10. 重启 Web 服务..."
+# 先杀掉旧服务（旧服务内存中的缓存不含新字段）
 if lsof -i :8765 > /dev/null 2>&1; then
-    echo "  服务已在运行（端口 8765）"
+    echo "  停止旧服务..."
+    pkill -f usage_server.py 2>/dev/null || true
+    sleep 1
+fi
+# 额外删除残留缓存文件（防止旧缓存未被清理）
+rm -f "$SKILL_DIR/data/usage_cache.json"
+# 启动新服务
+nohup python3 "$SKILL_DIR/scripts/usage_server.py" > "$SKILL_DIR/data/usage_server.log" 2>&1 &
+echo "  ✓ 服务已启动（PID: $!）"
+sleep 2
+# 验证服务是否启动成功
+if lsof -i :8765 > /dev/null 2>&1; then
+    echo "  ✓ 服务运行正常"
 else
-    # 后台启动服务
-    nohup python3 "$SKILL_DIR/scripts/usage_server.py" > "$SKILL_DIR/data/usage_server.log" 2>&1 &
-    echo "  ✓ 服务已启动（PID: $!）"
+    echo "  ⚠ 服务启动失败，请查看日志: cat $SKILL_DIR/data/usage_server.log"
 fi
 
 echo ""
